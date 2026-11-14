@@ -1,0 +1,56 @@
+name: Transport lab
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: transport-lab-${{ github.ref }}
+  cancel-in-progress: false
+jobs:
+  checks:
+    name: Unit, race and safety checks
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5
+        with:
+          go-version: '1.26.11'
+          cache: true
+      - run: make ci
+  kind:
+    name: kindnetd and kube-proxy end-to-end
+    needs: checks
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - name: Install pinned kind with checksum verification
+        run: make install-kind
+      - name: Run all four experiments
+        run: |
+          mkdir -p reports
+          set -o pipefail
+          make demo 2>&1 | tee reports/runner.log
+      - name: Show measured results in GitHub summary
+        if: always()
+        run: |
+          if test -f reports/latest/summary.md; then
+            cat reports/latest/summary.md >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo 'No completed measurement report. Inspect logs and artifacts; this run is not a verified PASS.' >> "$GITHUB_STEP_SUMMARY"
+          fi
+      - name: Preserve HTML, Markdown, JSON and diagnostic evidence
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: transport-lab-report
+          path: reports/
+          if-no-files-found: warn
+          retention-days: 14
+      - name: Remove only the owned lab cluster
+        if: always()
+        run: make clean

@@ -1,0 +1,20 @@
+apiVersion: batch/v1
+kind: Job
+metadata: {name: LAB_JOB, namespace: lb-lab, labels: {app: transport-probe}}
+spec:
+  backoffLimit: 0
+  activeDeadlineSeconds: 180
+  ttlSecondsAfterFinished: 3600
+  template:
+    metadata: {labels: {app: transport-probe}}
+    spec:
+      restartPolicy: Never
+      automountServiceAccountToken: false
+      securityContext: {runAsNonRoot: true, runAsUser: 65532, seccompProfile: {type: RuntimeDefault}}
+      containers:
+        - name: probe
+          image: LAB_IMAGE
+          imagePullPolicy: Never
+          args: [probe, --requests, "LAB_REQUESTS"]
+          resources: {requests: {cpu: 50m, memory: 32Mi}, limits: {cpu: "1", memory: 192Mi}}
+          securityContext: {allowPrivilegeEscalation: false, readOnlyRootFilesystem: true, capabilities: {drop: [ALL]}}

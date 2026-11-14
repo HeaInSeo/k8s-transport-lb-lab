@@ -1,0 +1,6 @@
+.lab/
+.cache/
+reports/
+*.test
+coverage.out
+__pycache__/

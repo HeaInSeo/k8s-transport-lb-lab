@@ -1,0 +1,5 @@
+.git
+.lab
+.cache
+reports
+__pycache__
